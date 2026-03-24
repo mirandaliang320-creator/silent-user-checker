@@ -452,11 +452,11 @@
       />
       <button class="clear-btn" id="clearBtn" onclick="clearInput()">✕</button>
     </div>
-    <button class="query-btn" onclick="querySTB()">
+    <button class="query-btn" onclick="startScan()">
       📱 立即扫码查询
     </button>
     <div class="scan-tip">
-      📷 <span>扫描机顶盒背面条形码后，STBID 将自动填入输入框</span>
+      📷 <span>点击按钮调用手机摄像头扫描条形码</span>
     </div>
   </div>
 
@@ -738,6 +738,172 @@ function shake(el) {
 document.getElementById('stbInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') querySTB();
 });
+
+// ─────────────────────────────────────────────
+// 扫码功能
+// ─────────────────────────────────────────────
+async function startScan() {
+  try {
+    // 检查浏览器是否支持 BarcodeDetector API
+    if (!('BarcodeDetector' in window)) {
+      // 如果不支持，使用文件输入作为备选
+      alert('你的浏览器不支持条形码扫描。\n\n请直接输入 STBID 或使用条形码扫描枪。');
+      document.getElementById('stbInput').focus();
+      return;
+    }
+
+    // 请求摄像头权限
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+
+    // 创建视频元素
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+
+    // 创建扫码界面
+    const scanContainer = document.createElement('div');
+    scanContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    const videoContainer = document.createElement('div');
+    videoContainer.style.cssText = `
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    `;
+
+    video.style.cssText = `
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    `;
+
+    // 添加扫描框
+    const scanFrame = document.createElement('div');
+    scanFrame.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 2px solid #00ff00;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    `;
+
+    // 添加关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ 关闭';
+    closeBtn.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: #ff4d4f;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 10000;
+    `;
+
+    // 添加提示文字
+    const tip = document.createElement('div');
+    tip.textContent = '请对准条形码';
+    tip.style.cssText = `
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 16px;
+      text-align: center;
+      z-index: 10000;
+    `;
+
+    videoContainer.appendChild(video);
+    videoContainer.appendChild(scanFrame);
+    videoContainer.appendChild(closeBtn);
+    videoContainer.appendChild(tip);
+    scanContainer.appendChild(videoContainer);
+    document.body.appendChild(scanContainer);
+
+    // 初始化条形码检测器
+    const barcodeDetector = new BarcodeDetector({
+      formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upca', 'upce']
+    });
+
+    let scanning = true;
+    let detectedCode = null;
+
+    // 扫描循环
+    const scanLoop = async () => {
+      if (!scanning) return;
+
+      try {
+        const barcodes = await barcodeDetector.detect(video);
+        
+        if (barcodes.length > 0) {
+          detectedCode = barcodes[0].rawValue;
+          
+          // 停止扫描
+          scanning = false;
+          stream.getTracks().forEach(track => track.stop());
+          document.body.removeChild(scanContainer);
+
+          // 填入输入框
+          document.getElementById('stbInput').value = detectedCode.toUpperCase();
+          document.getElementById('clearBtn').classList.add('show');
+
+          // 自动查询
+          querySTB();
+        }
+      } catch (e) {
+        // 继续扫描
+      }
+
+      if (scanning) {
+        requestAnimationFrame(scanLoop);
+      }
+    };
+
+    // 关闭按钮事件
+    closeBtn.onclick = () => {
+      scanning = false;
+      stream.getTracks().forEach(track => track.stop());
+      document.body.removeChild(scanContainer);
+    };
+
+    // 开始扫描
+    scanLoop();
+
+  } catch (error) {
+    if (error.name === 'NotAllowedError') {
+      alert('你拒绝了摄像头权限。\n\n请允许访问摄像头后重试。');
+    } else if (error.name === 'NotFoundError') {
+      alert('你的设备没有摄像头。\n\n请直接输入 STBID。');
+    } else {
+      alert('无法启动摄像头。\n\n请直接输入 STBID 或使用条形码扫描枪。');
+    }
+    document.getElementById('stbInput').focus();
+  }
+}
 
 // ─────────────────────────────────────────────
 // 初始化
