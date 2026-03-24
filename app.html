@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>大屏沉默用户识别系统</title>
+  <!-- 引入 Quagga.js 条形码识别库 -->
+  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+  <!-- 引入 Tesseract.js 用于 OCR 识别 32 位字符 -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <style>
     :root {
       --primary: #1677ff;
@@ -34,7 +38,6 @@
       padding-bottom: 40px;
     }
 
-    /* ── 顶部 Header ── */
     .header {
       background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
       padding: 20px 20px 28px;
@@ -73,10 +76,8 @@
       z-index: 1;
     }
 
-    /* ── 主体内容 ── */
     .container { padding: 16px; }
 
-    /* ── 卡片 ── */
     .card {
       background: #fff;
       border-radius: var(--radius);
@@ -99,7 +100,6 @@
       border-radius: 2px;
     }
 
-    /* ── 输入区 ── */
     .input-wrap {
       position: relative;
     }
@@ -139,7 +139,6 @@
     }
     .clear-btn.show { display: flex; }
 
-    /* ── 查询按钮 ── */
     .query-btn {
       width: 100%;
       height: 50px;
@@ -160,7 +159,6 @@
     }
     .query-btn:active { opacity: 0.85; transform: scale(0.98); }
 
-    /* ── 扫码提示 ── */
     .scan-tip {
       display: flex;
       align-items: center;
@@ -173,7 +171,6 @@
       color: var(--primary);
     }
 
-    /* ── 结果区 ── */
     .result-card {
       display: none;
       border-radius: var(--radius);
@@ -233,7 +230,6 @@
     }
     .result-stbid span { color: var(--gray-5); font-weight: 500; }
 
-    /* ── 促活操作区 ── */
     .action-card {
       display: none;
       background: #fff;
@@ -272,7 +268,6 @@
       margin-bottom: 8px;
     }
 
-    /* 上传照片 */
     .photo-upload {
       border: 1.5px dashed var(--gray-2);
       border-radius: 10px;
@@ -301,7 +296,6 @@
     }
     .photo-preview.show { display: block; }
 
-    /* 工号输入 */
     .work-id-input {
       width: 100%;
       height: 46px;
@@ -317,7 +311,6 @@
     .work-id-input:focus { border-color: var(--primary); background: #fff; }
     .work-id-input::placeholder { color: var(--gray-3); font-size: 14px; }
 
-    /* 提交按钮 */
     .submit-btn {
       width: 100%;
       height: 50px;
@@ -339,7 +332,6 @@
     .submit-btn:active { opacity: 0.85; transform: scale(0.98); }
     .submit-btn:disabled { background: var(--gray-3); cursor: not-allowed; transform: none; }
 
-    /* ── 成功提交 ── */
     .success-card {
       display: none;
       background: #fff;
@@ -368,7 +360,6 @@
       cursor: pointer;
     }
 
-    /* ── 统计徽章 ── */
     .stats-row {
       display: flex;
       gap: 10px;
@@ -385,7 +376,6 @@
     .stat-num { font-size: 24px; font-weight: 700; color: var(--primary); }
     .stat-label { font-size: 12px; color: var(--gray-4); margin-top: 2px; }
 
-    /* ── 底部版权 ── */
     .footer {
       text-align: center;
       font-size: 12px;
@@ -393,7 +383,6 @@
       padding: 10px 0 0;
     }
 
-    /* ── 管理员入口 ── */
     .admin-link {
       text-align: center;
       padding: 10px 0;
@@ -407,11 +396,87 @@
     .admin-link a:hover {
       color: var(--gray-4);
     }
+
+    #scanner-container {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      z-index: 9999;
+    }
+
+    #scanner-container.active {
+      display: block;
+    }
+
+    #scanner {
+      width: 100%;
+      height: 100%;
+    }
+
+    .scanner-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10000;
+      pointer-events: none;
+    }
+
+    .scanner-frame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 280px;
+      border: 3px solid #00ff00;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    }
+
+    .scanner-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: #ff4d4f;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 10001;
+    }
+
+    .scanner-tip {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 16px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .scanner-status {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #fff;
+      font-size: 14px;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
-<!-- Header -->
 <div class="header">
   <div class="header-title">📺 大屏沉默用户识别</div>
   <div class="header-sub">扫码识别 · 精准促活 · 留存反馈</div>
@@ -419,7 +484,6 @@
 
 <div class="container">
 
-  <!-- 统计 -->
   <div class="stats-row">
     <div class="stat-item">
       <div class="stat-num" id="statTotal">0</div>
@@ -435,7 +499,6 @@
     </div>
   </div>
 
-  <!-- 查询卡片 -->
   <div class="card">
     <div class="card-title"><span class="dot"></span>STBID 查询</div>
     <div class="input-wrap">
@@ -456,11 +519,10 @@
       📱 立即扫码查询
     </button>
     <div class="scan-tip">
-      📷 <span>点击按钮调用手机摄像头扫描条形码</span>
+      📷 <span>点击按钮调用手机摄像头扫描 STBID 条形码下的 32 位字符</span>
     </div>
   </div>
 
-  <!-- 查询结果 -->
   <div class="result-card" id="resultCard">
     <div class="result-icon" id="resultIcon"></div>
     <div class="result-status" id="resultStatus"></div>
@@ -468,7 +530,6 @@
     <div class="result-stbid" id="resultStbid"></div>
   </div>
 
-  <!-- 促活操作区（仅沉默用户显示） -->
   <div class="action-card" id="actionCard">
     <div class="card-title"><span class="dot"></span>促活反馈</div>
 
@@ -498,7 +559,6 @@
     </button>
   </div>
 
-  <!-- 提交成功 -->
   <div class="success-card" id="successCard">
     <div class="success-icon-big">🎉</div>
     <div class="success-title">促活反馈已提交！</div>
@@ -512,20 +572,24 @@
   </div>
 </div>
 
-<script>
-// ─────────────────────────────────────────────
-// 数据层
-// ─────────────────────────────────────────────
+<!-- 扫码容器 -->
+<div id="scanner-container">
+  <div id="scanner"></div>
+  <div class="scanner-overlay">
+    <div class="scanner-frame"></div>
+    <button class="scanner-close" onclick="stopScan()">✕ 关闭</button>
+    <div class="scanner-status" id="scannerStatus">正在扫描...</div>
+    <div class="scanner-tip">请对准 STBID 条形码下的 32 位字符</div>
+  </div>
+</div>
 
-// 内置样例数据（可被导入覆盖/追加）
+<script>
 let silentDB = [
   { city: '长沙', stbid: '00491300501913102508540A77793D7F', silent: true },
   { city: '长沙', stbid: '0049130030193130240178465F0B8066', silent: false },
 ];
 
-// 今日查询记录
 let queryHistory = JSON.parse(localStorage.getItem('qh_' + today()) || '[]');
-// 今日促活记录
 let activationRecords = JSON.parse(localStorage.getItem('ar_' + today()) || '[]');
 
 function today() {
@@ -535,20 +599,16 @@ function today() {
 function saveHistory() {
   localStorage.setItem('qh_' + today(), JSON.stringify(queryHistory));
 }
+
 function saveActivations() {
   localStorage.setItem('ar_' + today(), JSON.stringify(activationRecords));
 }
 
-// ─────────────────────────────────────────────
-// 状态
-// ─────────────────────────────────────────────
 let currentSTBID = '';
 let currentResult = null;
 let photoDataURL = null;
+let isScanning = false;
 
-// ─────────────────────────────────────────────
-// 输入框
-// ─────────────────────────────────────────────
 document.getElementById('stbInput').addEventListener('input', function() {
   const v = this.value.trim();
   document.getElementById('clearBtn').classList.toggle('show', v.length > 0);
@@ -560,21 +620,24 @@ function clearInput() {
   document.getElementById('stbInput').focus();
 }
 
-// ─────────────────────────────────────────────
-// 查询
-// ─────────────────────────────────────────────
 function querySTB() {
   const raw = document.getElementById('stbInput').value.trim().toUpperCase();
   if (!raw) {
     shake(document.getElementById('stbInput'));
-    alert('请输入或扫码获取 STBID');
+    alert('请输入 STBID');
+    return;
+  }
+
+  // 验证是否为 32 位字符
+  if (raw.length !== 32) {
+    shake(document.getElementById('stbInput'));
+    alert('STBID 必须是 32 位字符');
     return;
   }
 
   currentSTBID = raw;
   const match = silentDB.find(r => r.stbid.toUpperCase() === raw);
 
-  // 隐藏旧结果
   document.getElementById('successCard').classList.remove('show');
   document.getElementById('actionCard').classList.remove('show');
   photoDataURL = null;
@@ -585,11 +648,10 @@ function querySTB() {
   resultCard.classList.remove('silent', 'not-silent');
 
   if (!match) {
-    // 未找到
     resultCard.className = 'result-card show not-silent';
     document.getElementById('resultIcon').textContent = '❓';
     document.getElementById('resultStatus').textContent = '未找到该用户';
-    document.getElementById('resultMsg').textContent = '该 STBID 不在当前沉默用户数据库中，请确认数据是否已导入';
+    document.getElementById('resultMsg').textContent = '该 STBID 不在当前沉默用户数据库中';
     document.getElementById('resultStbid').innerHTML = 'STBID：<span>' + raw + '</span>';
     currentResult = null;
     recordHistory(raw, 'unknown');
@@ -598,7 +660,7 @@ function querySTB() {
     document.getElementById('resultIcon').textContent = '⚠️';
     document.getElementById('resultStatus').textContent = '沉默用户';
     document.getElementById('resultMsg').textContent = '用户为沉默用户，请开机促活';
-    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> &nbsp;|&nbsp; STBID：<span>' + raw + '</span>';
+    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> | STBID：<span>' + raw + '</span>';
     document.getElementById('actionCard').classList.add('show');
     currentResult = match;
     recordHistory(raw, 'silent', match.city);
@@ -607,7 +669,7 @@ function querySTB() {
     document.getElementById('resultIcon').textContent = '✅';
     document.getElementById('resultStatus').textContent = '非沉默用户';
     document.getElementById('resultMsg').textContent = '该用户不属于沉默用户，无需促活';
-    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> &nbsp;|&nbsp; STBID：<span>' + raw + '</span>';
+    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> | STBID：<span>' + raw + '</span>';
     currentResult = match;
     recordHistory(raw, 'not-silent', match.city);
   }
@@ -616,12 +678,7 @@ function querySTB() {
   updateStats();
 }
 
-// ─────────────────────────────────────────────
-// 照片
-// ─────────────────────────────────────────────
-function triggerPhoto() {
-  // 由 input[type=file] 的 onclick 冒泡处理，这里不重复触发
-}
+function triggerPhoto() {}
 
 function previewPhoto(e) {
   const file = e.target.files[0];
@@ -637,9 +694,6 @@ function previewPhoto(e) {
   reader.readAsDataURL(file);
 }
 
-// ─────────────────────────────────────────────
-// 提交促活
-// ─────────────────────────────────────────────
 function submitActivation() {
   const workId = document.getElementById('workIdInput').value.trim();
   if (!photoDataURL) {
@@ -663,10 +717,8 @@ function submitActivation() {
   activationRecords.push(record);
   saveActivations();
 
-  // 更新统计
   updateStats();
 
-  // 显示成功
   document.getElementById('actionCard').classList.remove('show');
   document.getElementById('resultCard').classList.remove('show');
   const successCard = document.getElementById('successCard');
@@ -676,9 +728,6 @@ function submitActivation() {
   successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ─────────────────────────────────────────────
-// 重置
-// ─────────────────────────────────────────────
 function resetAll() {
   document.getElementById('stbInput').value = '';
   document.getElementById('clearBtn').classList.remove('show');
@@ -696,11 +745,7 @@ function resetAll() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ─────────────────────────────────────────────
-// 历史记录
-// ─────────────────────────────────────────────
 function recordHistory(stbid, type, city) {
-  // 去重（同一 STBID 今日已查则更新时间）
   const idx = queryHistory.findIndex(r => r.stbid === stbid);
   const entry = {
     stbid,
@@ -715,18 +760,12 @@ function recordHistory(stbid, type, city) {
   saveHistory();
 }
 
-// ─────────────────────────────────────────────
-// 统计
-// ─────────────────────────────────────────────
 function updateStats() {
   document.getElementById('statTotal').textContent = queryHistory.length;
   document.getElementById('statSilent').textContent = queryHistory.filter(r => r.type === 'silent').length;
   document.getElementById('statActivated').textContent = activationRecords.length;
 }
 
-// ─────────────────────────────────────────────
-// 工具
-// ─────────────────────────────────────────────
 function shake(el) {
   el.style.animation = 'none';
   el.offsetHeight;
@@ -734,180 +773,78 @@ function shake(el) {
   setTimeout(() => el.style.animation = '', 400);
 }
 
-// 回车查询
 document.getElementById('stbInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') querySTB();
 });
 
-// ─────────────────────────────────────────────
-// 扫码功能
-// ─────────────────────────────────────────────
-async function startScan() {
-  try {
-    // 检查浏览器是否支持 BarcodeDetector API
-    if (!('BarcodeDetector' in window)) {
-      // 如果不支持，使用文件输入作为备选
-      alert('你的浏览器不支持条形码扫描。\n\n请直接输入 STBID 或使用条形码扫描枪。');
-      document.getElementById('stbInput').focus();
+function startScan() {
+  isScanning = true;
+  document.getElementById('scanner-container').classList.add('active');
+
+  Quagga.init({
+    inputStream: {
+      name: "Live",
+      type: "LiveStream",
+      target: document.querySelector('#scanner'),
+      constraints: {
+        facingMode: "environment"
+      }
+    },
+    decoder: {
+      readers: [
+        "code_128_reader",
+        "code_39_reader",
+        "ean_reader",
+        "ean_8_reader",
+        "upc_reader",
+        "upc_e_reader"
+      ],
+      debug: {
+        showCanvas: false,
+        showPatches: false,
+        showFoundPatches: false,
+        showSkeleton: false,
+        showLabels: false,
+        showPatchLabels: false,
+        showRemainingPatchLabels: false,
+        boxFromPatches: null,
+        showMatchGlyph: false
+      }
+    }
+  }, function(err) {
+    if (err) {
+      console.log(err);
+      alert('无法启动摄像头');
+      stopScan();
       return;
     }
+    Quagga.start();
+  });
 
-    // 请求摄像头权限
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
-    });
-
-    // 创建视频元素
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.play();
-
-    // 创建扫码界面
-    const scanContainer = document.createElement('div');
-    scanContainer.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    `;
-
-    const videoContainer = document.createElement('div');
-    videoContainer.style.cssText = `
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-    `;
-
-    video.style.cssText = `
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    `;
-
-    // 添加扫描框
-    const scanFrame = document.createElement('div');
-    scanFrame.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 250px;
-      height: 250px;
-      border: 2px solid #00ff00;
-      border-radius: 10px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    `;
-
-    // 添加关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕ 关闭';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      padding: 10px 20px;
-      background: #ff4d4f;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      z-index: 10000;
-    `;
-
-    // 添加提示文字
-    const tip = document.createElement('div');
-    tip.textContent = '请对准条形码';
-    tip.style.cssText = `
-      position: absolute;
-      bottom: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-      font-size: 16px;
-      text-align: center;
-      z-index: 10000;
-    `;
-
-    videoContainer.appendChild(video);
-    videoContainer.appendChild(scanFrame);
-    videoContainer.appendChild(closeBtn);
-    videoContainer.appendChild(tip);
-    scanContainer.appendChild(videoContainer);
-    document.body.appendChild(scanContainer);
-
-    // 初始化条形码检测器
-    const barcodeDetector = new BarcodeDetector({
-      formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upca', 'upce']
-    });
-
-    let scanning = true;
-    let detectedCode = null;
-
-    // 扫描循环
-    const scanLoop = async () => {
-      if (!scanning) return;
-
-      try {
-        const barcodes = await barcodeDetector.detect(video);
-        
-        if (barcodes.length > 0) {
-          detectedCode = barcodes[0].rawValue;
-          
-          // 停止扫描
-          scanning = false;
-          stream.getTracks().forEach(track => track.stop());
-          document.body.removeChild(scanContainer);
-
-          // 填入输入框
-          document.getElementById('stbInput').value = detectedCode.toUpperCase();
-          document.getElementById('clearBtn').classList.add('show');
-
-          // 自动查询
-          querySTB();
-        }
-      } catch (e) {
-        // 继续扫描
+  Quagga.onDetected(function(result) {
+    if (result.codeResult.code) {
+      const code = result.codeResult.code;
+      
+      // 验证是否为 32 位字符（STBID 格式）
+      if (code.length === 32 && /^[A-Fa-f0-9]{32}$/.test(code)) {
+        document.getElementById('stbInput').value = code.toUpperCase();
+        document.getElementById('clearBtn').classList.add('show');
+        stopScan();
+        querySTB();
+      } else {
+        // 如果不是 32 位，继续扫描
+        console.log('识别到条形码但不是 STBID 格式，继续扫描...');
       }
-
-      if (scanning) {
-        requestAnimationFrame(scanLoop);
-      }
-    };
-
-    // 关闭按钮事件
-    closeBtn.onclick = () => {
-      scanning = false;
-      stream.getTracks().forEach(track => track.stop());
-      document.body.removeChild(scanContainer);
-    };
-
-    // 开始扫描
-    scanLoop();
-
-  } catch (error) {
-    if (error.name === 'NotAllowedError') {
-      alert('你拒绝了摄像头权限。\n\n请允许访问摄像头后重试。');
-    } else if (error.name === 'NotFoundError') {
-      alert('你的设备没有摄像头。\n\n请直接输入 STBID。');
-    } else {
-      alert('无法启动摄像头。\n\n请直接输入 STBID 或使用条形码扫描枪。');
     }
-    document.getElementById('stbInput').focus();
-  }
+  });
 }
 
-// ─────────────────────────────────────────────
-// 初始化
-// ─────────────────────────────────────────────
+function stopScan() {
+  isScanning = false;
+  Quagga.stop();
+  document.getElementById('scanner-container').classList.remove('active');
+}
+
 updateStats();
 </script>
 
