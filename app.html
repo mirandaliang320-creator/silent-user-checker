@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>大屏沉默用户识别系统</title>
-  <!-- 引入 Tesseract.js 用于 OCR 识别 -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <style>
     :root {
       --primary: #1677ff;
@@ -397,48 +395,110 @@
       color: var(--gray-4);
     }
 
-    .ocr-status {
+    .ocr-modal {
       display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    .ocr-modal.show {
+      display: flex;
+    }
+
+    .ocr-modal-content {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 20px;
+      max-width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      text-align: center;
+    }
+
+    .ocr-modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .ocr-modal-image {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .ocr-modal-results {
+      text-align: left;
+      background: var(--gray-1);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: var(--gray-5);
+    }
+
+    .ocr-modal-result-item {
+      padding: 8px;
+      margin-bottom: 8px;
+      background: #fff;
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .ocr-modal-result-item:hover {
       background: var(--primary-light);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--primary);
-      text-align: center;
     }
-    .ocr-status.show { display: block; }
+    .ocr-modal-result-item.selected {
+      background: var(--primary-light);
+      border-left-color: var(--success);
+    }
 
-    .ocr-result {
-      display: none;
-      background: var(--success-light);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--success);
-      text-align: center;
+    .ocr-modal-buttons {
+      display: flex;
+      gap: 10px;
     }
-    .ocr-result.show { display: block; }
+    .ocr-modal-buttons button {
+      flex: 1;
+      height: 44px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .ocr-modal-buttons button:active {
+      opacity: 0.85;
+    }
 
-    .ocr-error {
-      display: none;
-      background: var(--danger-light);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--danger);
-      text-align: center;
+    .btn-confirm {
+      background: var(--success);
+      color: #fff;
     }
-    .ocr-error.show { display: block; }
+
+    .btn-cancel {
+      background: var(--gray-2);
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-title">📺 大屏沉默用户识别</div>
-  <div class="header-sub">拍照识别 · 精准促活 · 留存反馈</div>
+  <div class="header-sub">智能识别 · 精准促活 · 留存反馈</div>
 </div>
 
 <div class="container">
@@ -478,7 +538,7 @@
       📸 拍照识别 STBID
     </button>
     <div class="scan-tip">
-      📷 <span>点击按钮拍照，系统自动识别 STBID: 后面的 32 位字符</span>
+      📷 <span>点击按钮拍照，自动识别任意一行的 32 位字符</span>
     </div>
   </div>
 
@@ -531,6 +591,19 @@
   </div>
 </div>
 
+<!-- OCR 结果选择模态框 -->
+<div class="ocr-modal" id="ocrModal">
+  <div class="ocr-modal-content">
+    <div class="ocr-modal-title">识别结果 - 请选择正确的 STBID</div>
+    <img class="ocr-modal-image" id="ocrModalImage" />
+    <div class="ocr-modal-results" id="ocrModalResults"></div>
+    <div class="ocr-modal-buttons">
+      <button class="btn-confirm" onclick="confirmOCRResult()">✅ 确认选择</button>
+      <button class="btn-cancel" onclick="cancelOCR()">❌ 取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let silentDB = [
   { city: '长沙', stbid: '00491300501913102508540A77793D7F', silent: true },
@@ -555,6 +628,7 @@ function saveActivations() {
 let currentSTBID = '';
 let currentResult = null;
 let photoDataURL = null;
+let selectedOCRResult = null;
 
 document.getElementById('stbInput').addEventListener('input', function() {
   const v = this.value.trim();
@@ -723,62 +797,63 @@ document.getElementById('stbInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') querySTB();
 });
 
-async function startPhotoCapture() {
-  try {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    
-    input.onchange = async function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+function startPhotoCapture() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async function(ev) {
-        const imageData = ev.target.result;
-        await recognizeSTBID(imageData);
-      };
-      reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = async function(ev) {
+      const imageData = ev.target.result;
+      await recognizeWithOCR(imageData);
     };
+    reader.readAsDataURL(file);
+  };
 
-    input.click();
-  } catch (error) {
-    alert('无法启动摄像头');
-  }
+  input.click();
 }
 
-async function recognizeSTBID(imageData) {
+async function recognizeWithOCR(imageData) {
   const scanBtn = document.getElementById('scanBtn');
   scanBtn.disabled = true;
   scanBtn.textContent = '🔄 识别中...';
 
   try {
+    // 使用 Tesseract.js 进行 OCR 识别
     const { data: { text } } = await Tesseract.recognize(imageData, 'eng', {
       logger: m => console.log(m)
     });
 
     console.log('OCR 识别结果:', text);
 
-    // 查找 "STBID:" 后面的 32 位字符
-    const stbidMatch = text.match(/STBID[:\s]+([A-Fa-f0-9]{32})/i);
-    
-    if (stbidMatch && stbidMatch[1]) {
-      const stbid = stbidMatch[1].toUpperCase();
+    // 提取所有 32 位十六进制字符
+    const hexPattern = /[A-Fa-f0-9]{32}/g;
+    const matches = text.match(hexPattern) || [];
+
+    if (matches.length === 0) {
+      alert('未能识别到 32 位字符。请确保拍照清晰。');
+      scanBtn.disabled = false;
+      scanBtn.textContent = '📸 拍照识别 STBID';
+      return;
+    }
+
+    // 去重
+    const uniqueMatches = [...new Set(matches)];
+
+    if (uniqueMatches.length === 1) {
+      // 只有一个结果，直接使用
+      const stbid = uniqueMatches[0].toUpperCase();
       document.getElementById('stbInput').value = stbid;
       document.getElementById('clearBtn').classList.add('show');
       querySTB();
     } else {
-      // 尝试直接查找 32 位十六进制字符
-      const hexMatch = text.match(/([A-Fa-f0-9]{32})/);
-      if (hexMatch && hexMatch[1]) {
-        const stbid = hexMatch[1].toUpperCase();
-        document.getElementById('stbInput').value = stbid;
-        document.getElementById('clearBtn').classList.add('show');
-        querySTB();
-      } else {
-        alert('未能识别到 STBID。请确保拍照清晰，包含 "STBID:" 标签和 32 位字符。');
-      }
+      // 多个结果，显示选择界面
+      showOCRResultsModal(imageData, uniqueMatches);
     }
   } catch (error) {
     console.error('OCR 识别错误:', error);
@@ -787,6 +862,53 @@ async function recognizeSTBID(imageData) {
     scanBtn.disabled = false;
     scanBtn.textContent = '📸 拍照识别 STBID';
   }
+}
+
+function showOCRResultsModal(imageData, results) {
+  document.getElementById('ocrModalImage').src = imageData;
+  
+  const resultsContainer = document.getElementById('ocrModalResults');
+  resultsContainer.innerHTML = '';
+  
+  results.forEach((result, index) => {
+    const item = document.createElement('div');
+    item.className = 'ocr-modal-result-item';
+    item.textContent = `${index + 1}. ${result}`;
+    item.onclick = function() {
+      document.querySelectorAll('.ocr-modal-result-item').forEach(el => {
+        el.classList.remove('selected');
+      });
+      this.classList.add('selected');
+      selectedOCRResult = result;
+    };
+    resultsContainer.appendChild(item);
+  });
+
+  // 默认选择第一个
+  if (results.length > 0) {
+    resultsContainer.firstChild.classList.add('selected');
+    selectedOCRResult = results[0];
+  }
+
+  document.getElementById('ocrModal').classList.add('show');
+}
+
+function confirmOCRResult() {
+  if (!selectedOCRResult) {
+    alert('请选择一个结果');
+    return;
+  }
+
+  const stbid = selectedOCRResult.toUpperCase();
+  document.getElementById('stbInput').value = stbid;
+  document.getElementById('clearBtn').classList.add('show');
+  document.getElementById('ocrModal').classList.remove('show');
+  querySTB();
+}
+
+function cancelOCR() {
+  document.getElementById('ocrModal').classList.remove('show');
+  selectedOCRResult = null;
 }
 
 updateStats();
