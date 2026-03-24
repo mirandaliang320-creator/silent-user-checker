@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>大屏沉默用户识别系统</title>
+  <style>
+    :root {
+      --primary: #1677ff;
+      --primary-light: #e8f0fe;
+      --success: #00b96b;
+      --success-light: #e6f9f0;
+      --warning: #fa8c16;
+      --warning-light: #fff7e6;
+      --danger: #ff4d4f;
+      --danger-light: #fff1f0;
+      --gray-1: #f5f7fa;
+      --gray-2: #e8eaed;
+      --gray-3: #bfc4cc;
+      --gray-4: #8c9099;
+      --gray-5: #4e5969;
+      --text: #1d2129;
+      --radius: 12px;
+      --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--gray-1);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* ── 顶部 Header ── */
+    .header {
+      background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
+      padding: 20px 20px 28px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      right: -30px; bottom: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      right: 40px; bottom: -20px;
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      position: relative;
+      z-index: 1;
+    }
+    .header-sub {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── 主体内容 ── */
+    .container { padding: 16px; }
+
+    /* ── 卡片 ── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gray-5);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title .dot {
+      width: 4px; height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    /* ── 输入区 ── */
+    .input-wrap {
+      position: relative;
+    }
+    .stb-input {
+      width: 100%;
+      height: 52px;
+      border: 1.5px solid var(--gray-2);
+      border-radius: 10px;
+      padding: 0 52px 0 16px;
+      font-size: 15px;
+      color: var(--text);
+      background: var(--gray-1);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .stb-input:focus {
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .stb-input::placeholder { color: var(--gray-3); font-size: 14px; }
+    .clear-btn {
+      position: absolute;
+      right: 14px; top: 50%;
+      transform: translateY(-50%);
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--gray-3);
+      border: none;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .clear-btn.show { display: flex; }
+
+    /* ── 查询按钮 ── */
+    .query-btn {
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(135deg, #1677ff, #0958d9);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .query-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+    /* ── 扫码提示 ── */
+    .scan-tip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--primary);
+    }
+
+    /* ── 结果区 ── */
+    .result-card {
+      display: none;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px 20px;
+      margin-bottom: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+    .result-card.show { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    .result-card.silent {
+      background: linear-gradient(135deg, #fff7e6, #fff);
+      border: 1.5px solid #ffd591;
+    }
+    .result-card.not-silent {
+      background: linear-gradient(135deg, #e6f9f0, #fff);
+      border: 1.5px solid #95de64;
+    }
+
+    .result-icon {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      margin: 0 auto 16px;
+    }
+    .result-card.silent .result-icon { background: var(--warning-light); }
+    .result-card.not-silent .result-icon { background: var(--success-light); }
+
+    .result-status {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .result-card.silent .result-status { color: var(--warning); }
+    .result-card.not-silent .result-status { color: var(--success); }
+
+    .result-msg {
+      text-align: center;
+      font-size: 14px;
+      color: var(--gray-4);
+      margin-bottom: 16px;
+    }
+
+    .result-stbid {
+      background: var(--gray-1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--gray-4);
+      word-break: break-all;
+      text-align: center;
+    }
+    .result-stbid span { color: var(--gray-5); font-weight: 500; }
+
+    /* ── 促活操作区 ── */
+    .action-card {
+      display: none;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+      animation: fadeIn 0.3s ease 0.1s both;
+    }
+    .action-card.show { display: block; }
+
+    .action-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-content { flex: 1; }
+    .step-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    /* 上传照片 */
+    .photo-upload {
+      border: 1.5px dashed var(--gray-2);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .photo-upload:active { background: var(--gray-1); }
+    .photo-upload input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .photo-upload-icon { font-size: 28px; margin-bottom: 6px; }
+    .photo-upload-text { font-size: 13px; color: var(--gray-4); }
+    .photo-preview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      display: none;
+    }
+    .photo-preview.show { display: block; }
+
+    /* 工号输入 */
+    .work-id-input {
+      width: 100%;
+      height: 46px;
+      border: 1.5px solid var(--gray-2);
+      border-radius: 10px;
+      padding: 0 14px;
+      font-size: 15px;
+      color: var(--text);
+      background: var(--gray-1);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .work-id-input:focus { border-color: var(--primary); background: #fff; }
+    .work-id-input::placeholder { color: var(--gray-3); font-size: 14px; }
+
+    /* 提交按钮 */
+    .submit-btn {
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(135deg, #00b96b, #009a5a);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .submit-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .submit-btn:disabled { background: var(--gray-3); cursor: not-allowed; transform: none; }
+
+    /* ── 成功提交 ── */
+    .success-card {
+      display: none;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 20px;
+      text-align: center;
+      margin-bottom: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+    .success-card.show { display: block; }
+    .success-icon-big { font-size: 56px; margin-bottom: 12px; }
+    .success-title { font-size: 18px; font-weight: 700; color: var(--success); margin-bottom: 6px; }
+    .success-sub { font-size: 13px; color: var(--gray-4); margin-bottom: 20px; white-space: pre-wrap; }
+    .reset-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 28px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ── 统计徽章 ── */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat-item {
+      flex: 1;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .stat-num { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: 12px; color: var(--gray-4); margin-top: 2px; }
+
+    /* ── 底部版权 ── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--gray-3);
+      padding: 10px 0 0;
+    }
+
+    /* ── 管理员入口 ── */
+    .admin-link {
+      text-align: center;
+      padding: 10px 0;
+      font-size: 12px;
+    }
+    .admin-link a {
+      color: var(--gray-3);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .admin-link a:hover {
+      color: var(--gray-4);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-title">📺 大屏沉默用户识别</div>
+  <div class="header-sub">扫码识别 · 精准促活 · 留存反馈</div>
+</div>
+
+<div class="container">
+
+  <!-- 统计 -->
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-label">今日查询</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="statSilent" style="color:var(--warning)">0</div>
+      <div class="stat-label">沉默用户</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="statActivated" style="color:var(--success)">0</div>
+      <div class="stat-label">已促活</div>
+    </div>
+  </div>
+
+  <!-- 查询卡片 -->
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>STBID 查询</div>
+    <div class="input-wrap">
+      <input
+        class="stb-input"
+        id="stbInput"
+        type="text"
+        placeholder="请输入或扫码获取 STBID（32位）"
+        maxlength="32"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button class="clear-btn" id="clearBtn" onclick="clearInput()">✕</button>
+    </div>
+    <button class="query-btn" onclick="querySTB()">
+      📱 立即扫码查询
+    </button>
+    <div class="scan-tip">
+      📷 <span>扫描机顶盒背面条形码后，STBID 将自动填入输入框</span>
+    </div>
+  </div>
+
+  <!-- 查询结果 -->
+  <div class="result-card" id="resultCard">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-status" id="resultStatus"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div class="result-stbid" id="resultStbid"></div>
+  </div>
+
+  <!-- 促活操作区（仅沉默用户显示） -->
+  <div class="action-card" id="actionCard">
+    <div class="card-title"><span class="dot"></span>促活反馈</div>
+
+    <div class="action-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-label">拍摄开机照片</div>
+        <div class="photo-upload" id="photoUpload" onclick="triggerPhoto()">
+          <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="previewPhoto(event)" />
+          <div class="photo-upload-icon">📸</div>
+          <div class="photo-upload-text">点击拍摄 / 选择照片</div>
+        </div>
+        <img class="photo-preview" id="photoPreview" />
+      </div>
+    </div>
+
+    <div class="action-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-label">填写工号</div>
+        <input class="work-id-input" id="workIdInput" type="text" placeholder="请输入装维人员工号" maxlength="20" />
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitActivation()">
+      ✅ 提交促活反馈
+    </button>
+  </div>
+
+  <!-- 提交成功 -->
+  <div class="success-card" id="successCard">
+    <div class="success-icon-big">🎉</div>
+    <div class="success-title">促活反馈已提交！</div>
+    <div class="success-sub" id="successSub"></div>
+    <button class="reset-btn" onclick="resetAll()">🔄 继续查询下一户</button>
+  </div>
+
+  <div class="footer">大屏沉默用户精准识别系统 · 装维专用</div>
+  <div class="admin-link">
+    <a href="admin.html" target="_blank">🔐 后台管理</a>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 数据层
+// ─────────────────────────────────────────────
+
+// 内置样例数据（可被导入覆盖/追加）
+let silentDB = [
+  { city: '长沙', stbid: '00491300501913102508540A77793D7F', silent: true },
+  { city: '长沙', stbid: '0049130030193130240178465F0B8066', silent: false },
+];
+
+// 今日查询记录
+let queryHistory = JSON.parse(localStorage.getItem('qh_' + today()) || '[]');
+// 今日促活记录
+let activationRecords = JSON.parse(localStorage.getItem('ar_' + today()) || '[]');
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function saveHistory() {
+  localStorage.setItem('qh_' + today(), JSON.stringify(queryHistory));
+}
+function saveActivations() {
+  localStorage.setItem('ar_' + today(), JSON.stringify(activationRecords));
+}
+
+// ─────────────────────────────────────────────
+// 状态
+// ─────────────────────────────────────────────
+let currentSTBID = '';
+let currentResult = null;
+let photoDataURL = null;
+
+// ─────────────────────────────────────────────
+// 输入框
+// ─────────────────────────────────────────────
+document.getElementById('stbInput').addEventListener('input', function() {
+  const v = this.value.trim();
+  document.getElementById('clearBtn').classList.toggle('show', v.length > 0);
+});
+
+function clearInput() {
+  document.getElementById('stbInput').value = '';
+  document.getElementById('clearBtn').classList.remove('show');
+  document.getElementById('stbInput').focus();
+}
+
+// ─────────────────────────────────────────────
+// 查询
+// ─────────────────────────────────────────────
+function querySTB() {
+  const raw = document.getElementById('stbInput').value.trim().toUpperCase();
+  if (!raw) {
+    shake(document.getElementById('stbInput'));
+    alert('请输入或扫码获取 STBID');
+    return;
+  }
+
+  currentSTBID = raw;
+  const match = silentDB.find(r => r.stbid.toUpperCase() === raw);
+
+  // 隐藏旧结果
+  document.getElementById('successCard').classList.remove('show');
+  document.getElementById('actionCard').classList.remove('show');
+  photoDataURL = null;
+  document.getElementById('photoPreview').classList.remove('show');
+  document.getElementById('workIdInput').value = '';
+
+  const resultCard = document.getElementById('resultCard');
+  resultCard.classList.remove('silent', 'not-silent');
+
+  if (!match) {
+    // 未找到
+    resultCard.className = 'result-card show not-silent';
+    document.getElementById('resultIcon').textContent = '❓';
+    document.getElementById('resultStatus').textContent = '未找到该用户';
+    document.getElementById('resultMsg').textContent = '该 STBID 不在当前沉默用户数据库中，请确认数据是否已导入';
+    document.getElementById('resultStbid').innerHTML = 'STBID：<span>' + raw + '</span>';
+    currentResult = null;
+    recordHistory(raw, 'unknown');
+  } else if (match.silent) {
+    resultCard.className = 'result-card show silent';
+    document.getElementById('resultIcon').textContent = '⚠️';
+    document.getElementById('resultStatus').textContent = '沉默用户';
+    document.getElementById('resultMsg').textContent = '用户为沉默用户，请开机促活';
+    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> &nbsp;|&nbsp; STBID：<span>' + raw + '</span>';
+    document.getElementById('actionCard').classList.add('show');
+    currentResult = match;
+    recordHistory(raw, 'silent', match.city);
+  } else {
+    resultCard.className = 'result-card show not-silent';
+    document.getElementById('resultIcon').textContent = '✅';
+    document.getElementById('resultStatus').textContent = '非沉默用户';
+    document.getElementById('resultMsg').textContent = '该用户不属于沉默用户，无需促活';
+    document.getElementById('resultStbid').innerHTML = '地市：<span>' + match.city + '</span> &nbsp;|&nbsp; STBID：<span>' + raw + '</span>';
+    currentResult = match;
+    recordHistory(raw, 'not-silent', match.city);
+  }
+
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  updateStats();
+}
+
+// ─────────────────────────────────────────────
+// 照片
+// ─────────────────────────────────────────────
+function triggerPhoto() {
+  // 由 input[type=file] 的 onclick 冒泡处理，这里不重复触发
+}
+
+function previewPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    photoDataURL = ev.target.result;
+    const preview = document.getElementById('photoPreview');
+    preview.src = photoDataURL;
+    preview.classList.add('show');
+    document.getElementById('photoUpload').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─────────────────────────────────────────────
+// 提交促活
+// ─────────────────────────────────────────────
+function submitActivation() {
+  const workId = document.getElementById('workIdInput').value.trim();
+  if (!photoDataURL) {
+    alert('请先拍摄开机照片');
+    return;
+  }
+  if (!workId) {
+    shake(document.getElementById('workIdInput'));
+    alert('请填写工号');
+    return;
+  }
+
+  const record = {
+    stbid: currentSTBID,
+    city: currentResult ? currentResult.city : '',
+    workId: workId,
+    photo: photoDataURL,
+    time: new Date().toLocaleString('zh-CN'),
+    ts: Date.now(),
+  };
+  activationRecords.push(record);
+  saveActivations();
+
+  // 更新统计
+  updateStats();
+
+  // 显示成功
+  document.getElementById('actionCard').classList.remove('show');
+  document.getElementById('resultCard').classList.remove('show');
+  const successCard = document.getElementById('successCard');
+  document.getElementById('successSub').textContent =
+    '工号 ' + workId + ' · ' + record.time + '\nSTBID：' + currentSTBID;
+  successCard.classList.add('show');
+  successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ─────────────────────────────────────────────
+// 重置
+// ─────────────────────────────────────────────
+function resetAll() {
+  document.getElementById('stbInput').value = '';
+  document.getElementById('clearBtn').classList.remove('show');
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('actionCard').classList.remove('show');
+  document.getElementById('successCard').classList.remove('show');
+  document.getElementById('photoPreview').classList.remove('show');
+  document.getElementById('photoUpload').style.display = '';
+  document.getElementById('workIdInput').value = '';
+  document.getElementById('photoInput').value = '';
+  photoDataURL = null;
+  currentSTBID = '';
+  currentResult = null;
+  document.getElementById('stbInput').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────────
+// 历史记录
+// ─────────────────────────────────────────────
+function recordHistory(stbid, type, city) {
+  // 去重（同一 STBID 今日已查则更新时间）
+  const idx = queryHistory.findIndex(r => r.stbid === stbid);
+  const entry = {
+    stbid,
+    type,
+    city: city || '',
+    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    ts: Date.now(),
+  };
+  if (idx >= 0) queryHistory[idx] = entry;
+  else queryHistory.unshift(entry);
+  if (queryHistory.length > 50) queryHistory = queryHistory.slice(0, 50);
+  saveHistory();
+}
+
+// ─────────────────────────────────────────────
+// 统计
+// ─────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('statTotal').textContent = queryHistory.length;
+  document.getElementById('statSilent').textContent = queryHistory.filter(r => r.type === 'silent').length;
+  document.getElementById('statActivated').textContent = activationRecords.length;
+}
+
+// ─────────────────────────────────────────────
+// 工具
+// ─────────────────────────────────────────────
+function shake(el) {
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'shake 0.3s ease';
+  setTimeout(() => el.style.animation = '', 400);
+}
+
+// 回车查询
+document.getElementById('stbInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') querySTB();
+});
+
+// ─────────────────────────────────────────────
+// 初始化
+// ─────────────────────────────────────────────
+updateStats();
+</script>
+
+<style>
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
+</style>
+</body>
+</html>
