@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>大屏沉默用户识别系统</title>
-  <!-- 引入 Quagga.js 条形码识别库 -->
-  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-  <!-- 引入 Tesseract.js 用于 OCR 识别 32 位字符 -->
+  <!-- 引入 Tesseract.js 用于 OCR 识别 -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
   <style>
     :root {
@@ -158,6 +156,7 @@
       gap: 8px;
     }
     .query-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .query-btn:disabled { background: var(--gray-3); cursor: not-allowed; }
 
     .scan-tip {
       display: flex;
@@ -293,6 +292,7 @@
       object-fit: cover;
       border-radius: 8px;
       display: none;
+      margin-top: 10px;
     }
     .photo-preview.show { display: block; }
 
@@ -397,89 +397,48 @@
       color: var(--gray-4);
     }
 
-    #scanner-container {
+    .ocr-status {
       display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
-      z-index: 9999;
-    }
-
-    #scanner-container.active {
-      display: block;
-    }
-
-    #scanner {
-      width: 100%;
-      height: 100%;
-    }
-
-    .scanner-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 10000;
-      pointer-events: none;
-    }
-
-    .scanner-frame {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 280px;
-      height: 280px;
-      border: 3px solid #00ff00;
-      border-radius: 10px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-    }
-
-    .scanner-close {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      padding: 10px 20px;
-      background: #ff4d4f;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      pointer-events: auto;
-      z-index: 10001;
-    }
-
-    .scanner-tip {
-      position: absolute;
-      bottom: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-      font-size: 16px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--primary);
       text-align: center;
-      pointer-events: none;
     }
+    .ocr-status.show { display: block; }
 
-    .scanner-status {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      color: #fff;
-      font-size: 14px;
-      pointer-events: none;
+    .ocr-result {
+      display: none;
+      background: var(--success-light);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--success);
+      text-align: center;
     }
+    .ocr-result.show { display: block; }
+
+    .ocr-error {
+      display: none;
+      background: var(--danger-light);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--danger);
+      text-align: center;
+    }
+    .ocr-error.show { display: block; }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-title">📺 大屏沉默用户识别</div>
-  <div class="header-sub">扫码识别 · 精准促活 · 留存反馈</div>
+  <div class="header-sub">拍照识别 · 精准促活 · 留存反馈</div>
 </div>
 
 <div class="container">
@@ -506,7 +465,7 @@
         class="stb-input"
         id="stbInput"
         type="text"
-        placeholder="请输入或扫码获取 STBID（32位）"
+        placeholder="请输入或拍照识别 STBID（32位）"
         maxlength="32"
         autocomplete="off"
         autocorrect="off"
@@ -515,11 +474,11 @@
       />
       <button class="clear-btn" id="clearBtn" onclick="clearInput()">✕</button>
     </div>
-    <button class="query-btn" onclick="startScan()">
-      📱 立即扫码查询
+    <button class="query-btn" id="scanBtn" onclick="startPhotoCapture()">
+      📸 拍照识别 STBID
     </button>
     <div class="scan-tip">
-      📷 <span>点击按钮调用手机摄像头扫描 STBID 条形码下的 32 位字符</span>
+      📷 <span>点击按钮拍照，系统自动识别 STBID: 后面的 32 位字符</span>
     </div>
   </div>
 
@@ -572,17 +531,6 @@
   </div>
 </div>
 
-<!-- 扫码容器 -->
-<div id="scanner-container">
-  <div id="scanner"></div>
-  <div class="scanner-overlay">
-    <div class="scanner-frame"></div>
-    <button class="scanner-close" onclick="stopScan()">✕ 关闭</button>
-    <div class="scanner-status" id="scannerStatus">正在扫描...</div>
-    <div class="scanner-tip">请对准 STBID 条形码下的 32 位字符</div>
-  </div>
-</div>
-
 <script>
 let silentDB = [
   { city: '长沙', stbid: '00491300501913102508540A77793D7F', silent: true },
@@ -607,7 +555,6 @@ function saveActivations() {
 let currentSTBID = '';
 let currentResult = null;
 let photoDataURL = null;
-let isScanning = false;
 
 document.getElementById('stbInput').addEventListener('input', function() {
   const v = this.value.trim();
@@ -628,7 +575,6 @@ function querySTB() {
     return;
   }
 
-  // 验证是否为 32 位字符
   if (raw.length !== 32) {
     shake(document.getElementById('stbInput'));
     alert('STBID 必须是 32 位字符');
@@ -777,72 +723,70 @@ document.getElementById('stbInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') querySTB();
 });
 
-function startScan() {
-  isScanning = true;
-  document.getElementById('scanner-container').classList.add('active');
+async function startPhotoCapture() {
+  try {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    
+    input.onchange = async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
 
-  Quagga.init({
-    inputStream: {
-      name: "Live",
-      type: "LiveStream",
-      target: document.querySelector('#scanner'),
-      constraints: {
-        facingMode: "environment"
-      }
-    },
-    decoder: {
-      readers: [
-        "code_128_reader",
-        "code_39_reader",
-        "ean_reader",
-        "ean_8_reader",
-        "upc_reader",
-        "upc_e_reader"
-      ],
-      debug: {
-        showCanvas: false,
-        showPatches: false,
-        showFoundPatches: false,
-        showSkeleton: false,
-        showLabels: false,
-        showPatchLabels: false,
-        showRemainingPatchLabels: false,
-        boxFromPatches: null,
-        showMatchGlyph: false
-      }
-    }
-  }, function(err) {
-    if (err) {
-      console.log(err);
-      alert('无法启动摄像头');
-      stopScan();
-      return;
-    }
-    Quagga.start();
-  });
+      const reader = new FileReader();
+      reader.onload = async function(ev) {
+        const imageData = ev.target.result;
+        await recognizeSTBID(imageData);
+      };
+      reader.readAsDataURL(file);
+    };
 
-  Quagga.onDetected(function(result) {
-    if (result.codeResult.code) {
-      const code = result.codeResult.code;
-      
-      // 验证是否为 32 位字符（STBID 格式）
-      if (code.length === 32 && /^[A-Fa-f0-9]{32}$/.test(code)) {
-        document.getElementById('stbInput').value = code.toUpperCase();
-        document.getElementById('clearBtn').classList.add('show');
-        stopScan();
-        querySTB();
-      } else {
-        // 如果不是 32 位，继续扫描
-        console.log('识别到条形码但不是 STBID 格式，继续扫描...');
-      }
-    }
-  });
+    input.click();
+  } catch (error) {
+    alert('无法启动摄像头');
+  }
 }
 
-function stopScan() {
-  isScanning = false;
-  Quagga.stop();
-  document.getElementById('scanner-container').classList.remove('active');
+async function recognizeSTBID(imageData) {
+  const scanBtn = document.getElementById('scanBtn');
+  scanBtn.disabled = true;
+  scanBtn.textContent = '🔄 识别中...';
+
+  try {
+    const { data: { text } } = await Tesseract.recognize(imageData, 'eng', {
+      logger: m => console.log(m)
+    });
+
+    console.log('OCR 识别结果:', text);
+
+    // 查找 "STBID:" 后面的 32 位字符
+    const stbidMatch = text.match(/STBID[:\s]+([A-Fa-f0-9]{32})/i);
+    
+    if (stbidMatch && stbidMatch[1]) {
+      const stbid = stbidMatch[1].toUpperCase();
+      document.getElementById('stbInput').value = stbid;
+      document.getElementById('clearBtn').classList.add('show');
+      querySTB();
+    } else {
+      // 尝试直接查找 32 位十六进制字符
+      const hexMatch = text.match(/([A-Fa-f0-9]{32})/);
+      if (hexMatch && hexMatch[1]) {
+        const stbid = hexMatch[1].toUpperCase();
+        document.getElementById('stbInput').value = stbid;
+        document.getElementById('clearBtn').classList.add('show');
+        querySTB();
+      } else {
+        alert('未能识别到 STBID。请确保拍照清晰，包含 "STBID:" 标签和 32 位字符。');
+      }
+    }
+  } catch (error) {
+    console.error('OCR 识别错误:', error);
+    alert('识别失败，请重试或手动输入 STBID');
+  } finally {
+    scanBtn.disabled = false;
+    scanBtn.textContent = '📸 拍照识别 STBID';
+  }
 }
 
 updateStats();
